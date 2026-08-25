@@ -14,7 +14,7 @@
 
     <div class="container-fluid">
         <div class="container-fluid">
-            <!-- HEADER & FILTER SECTION (Responsif) -->
+
             <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center mb-4 gap-3">
                 <div>
                     <h2 class="fw-bold mb-1 fs-3">Manajemen Transaksi Penyewaan</h2>
