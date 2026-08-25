@@ -1,7 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-    //penambahan tampilan
     <style>
         @media (min-width: 768px) {
             .table-responsive {
