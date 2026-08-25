@@ -1,16 +1,14 @@
 @extends('layouts.app')
 
 @section('content')
-    <!-- TAMBAHKAN KODE STYLE INI DI SINI -->
+    //penambahan tampilan
     <style>
-        /* Mengatasi Dropdown terkurung & scrollbar ganda pada layar PC */
         @media (min-width: 768px) {
             .table-responsive {
                 overflow: visible !important;
             }
         }
     </style>
-    <!-- ================================== -->
 
     <div class="container-fluid">
         <div class="container-fluid">
