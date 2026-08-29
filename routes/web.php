@@ -188,6 +188,9 @@ Route::middleware('auth')->group(function () {
         $luas = $request->rented_length * $request->rented_width;
         $totalHarga = $luas * ($request->contract_duration_months / 12) * $request->price_per_meter_year;
         
+        // Menangkap inputan tanggal mulai dari form edit
+        $tanggalMulai = $request->start_date ? $request->start_date . ' 00:00:00' : now();
+        
         DB::table('rentals')->where('id', $id)->update([
             'tenant_name' => $request->tenant_name, 
             'tenant_phone' => $request->tenant_phone,
@@ -198,6 +201,7 @@ Route::middleware('auth')->group(function () {
             'payment_status' => $request->payment_status, 
             'payment_type' => '-',
             'total_price' => $totalHarga, 
+            'created_at' => $tanggalMulai, // <--- Tanggal mulai diperbarui di sini
             'updated_at' => now()
         ]);
         return redirect('/sewa-lahan')->with('sukses', 'Data kontrak berhasil diperbarui!');
