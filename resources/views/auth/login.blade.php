@@ -6,13 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Pande Mesari</title>
 
-    <!-- Memanggil CSS Bootstrap bawaan Dashboard -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 
     <style>
         body {
-            /* Warna latar belakang abu-abu sangat muda agar form login terlihat menonjol */
             background-color: #f4f6f9;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
@@ -26,7 +24,6 @@
         .brand-logo i {
             font-size: 3.5rem;
             color: #198754;
-            /* Warna hijau khas Pande Mesari */
         }
 
         .brand-text {
@@ -35,14 +32,29 @@
             letter-spacing: 1.5px;
         }
 
-        /* Mempercantik inputan agar mirip aplikasi modern */
         .input-group-text {
             background-color: transparent;
         }
 
+        /* 1. Matikan efek biru bawaan pada input teks yang terpotong */
         .form-control:focus {
             box-shadow: none;
-            border-color: #0d6efd;
+            border-color: #ced4da;
+        }
+
+        /* 2. Nyalakan efek biru pada KESELURUHAN KOTAK secara bersamaan */
+        .input-group:focus-within {
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+            border-radius: 0.375rem;
+        }
+
+        .input-group:focus-within .input-group-text,
+        .input-group:focus-within .form-control {
+            border-color: #86b7fe !important;
+        }
+
+        #togglePassword:hover {
+            color: #0d6efd !important;
         }
     </style>
 </head>
@@ -51,21 +63,18 @@
 
     <div class="login-wrapper">
 
-        <!-- LOGO & BRANDING PANDE MESARI -->
         <div class="text-center mb-4 brand-logo">
             <i class="bi bi-house-door-fill"></i>
             <h2 class="brand-text mt-2 mb-0">PANDE MESARI</h2>
             <p class="text-muted small mt-1">Sistem Manajemen Transaksi Penyewaan</p>
         </div>
 
-        <!-- KOTAK FORM LOGIN -->
         <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 bg-white">
             <div class="text-center mb-4">
                 <h5 class="fw-bold text-dark mb-1">Selamat Datang Admin</h5>
                 <p class="text-muted" style="font-size: 13px;">Silakan login untuk melanjutkan ke Dashboard.</p>
             </div>
 
-            <!-- Pesan Error Jika Password/Email Salah -->
             @if ($errors->any())
                 <div class="alert alert-danger py-2 px-3 small rounded-3 border-0 d-flex align-items-center mb-4">
                     <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
@@ -73,7 +82,6 @@
                 </div>
             @endif
 
-            <!-- FORM -->
             <form action="{{ url('/login') }}" method="POST">
                 @csrf
 
@@ -94,8 +102,12 @@
                         <span class="input-group-text border-end-0 text-muted">
                             <i class="bi bi-lock-fill"></i>
                         </span>
-                        <input type="password" name="password" class="form-control border-start-0 ps-0"
-                            placeholder="••••••••" required>
+                        <input type="password" name="password" id="password"
+                            class="form-control border-start-0 border-end-0 ps-0" placeholder="••••••••" required>
+                        <span class="input-group-text border-start-0 text-muted" id="togglePassword"
+                            style="cursor: pointer;">
+                            <i class="bi bi-eye-slash-fill" id="eyeIcon"></i>
+                        </span>
                     </div>
                 </div>
 
@@ -105,15 +117,32 @@
             </form>
         </div>
 
-        <!-- FOOTER KECIL -->
         <div class="text-center mt-4 text-muted" style="font-size: 12px;">
             &copy; {{ date('Y') }} <b>Pande Mesari</b>. Dikelola oleh Admin Utama.
         </div>
 
     </div>
 
-    <!-- Script Bootstrap -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#password');
+        const eyeIcon = document.querySelector('#eyeIcon');
+
+        togglePassword.addEventListener('click', function(e) {
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+
+            if (type === 'password') {
+                eyeIcon.classList.remove('bi-eye-fill');
+                eyeIcon.classList.add('bi-eye-slash-fill');
+            } else {
+                eyeIcon.classList.remove('bi-eye-slash-fill');
+                eyeIcon.classList.add('bi-eye-fill');
+            }
+        });
+    </script>
 </body>
 
 </html>
