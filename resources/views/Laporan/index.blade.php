@@ -451,3 +451,52 @@
             </div>
         </div>
     @endforeach
+    {{-- Modals Edit Pengeluaran --}}
+    @foreach (DB::table('expenses')->get() as $exp)
+        <div class="modal fade" id="editModal{{ $exp->id }}" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <form action="{{ url('/laporan/update-pengeluaran/' . $exp->id) }}" method="POST"
+                    class="modal-content border-0 shadow">
+                    @csrf
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title fs-6">Edit Pengeluaran</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-3 p-md-4">
+
+                        <!-- TAMBAHAN: EDIT TANGGAL PENGELUARAN -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" style="font-size: 13px;">Tanggal Pengeluaran</label>
+                            <input type="date" name="tanggal_pengeluaran" class="form-control border-primary"
+                                value="{{ date('Y-m-d', strtotime($exp->created_at)) }}" required>
+                        </div>
+                        <!-- ===================================== -->
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Sumber Uang</label>
+                            <select name="payment_method" class="form-select" required>
+                                <option value="Cash" {{ $exp->payment_method == 'Cash' ? 'selected' : '' }}>Uang Cash
+                                    Fisik</option>
+                                <option value="Transfer" {{ $exp->payment_method == 'Transfer' ? 'selected' : '' }}>
+                                    Transfer Bank</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Nominal (Rp)</label>
+                            <input type="number" name="amount" class="form-control" value="{{ $exp->amount }}"
+                                required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Keterangan</label>
+                            <input type="text" name="description" class="form-control"
+                                value="{{ $exp->description }}" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light border-0">
+                        <button type="submit" class="btn btn-primary w-100">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endforeach
+@endsection
