@@ -182,6 +182,7 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th class="ps-3">Tanggal Bayar</th>
+                                        <th class="text-center">No. Nota</th>
                                         <th>Nama Penyewa</th>
                                         <th>Metode Bayar</th>
                                         <th>Nominal Masuk</th>
@@ -192,6 +193,19 @@
                                     @forelse ($historiPemasukan as $in)
                                         <tr>
                                             <td class="ps-3">{{ date('d/m/Y', strtotime($in->payment_date)) }}</td>
+
+                                            <!-- TAMBAHAN: NOMOR NOTA YANG BISA DIKLIK -->
+                                            <td class="text-center">
+                                                <a href="{{ url('/sewa-lahan/cetak-nota/' . $in->rental_id) }}?t={{ time() }}"
+                                                    target="_blank" class="text-decoration-none" title="Buka PDF Nota">
+                                                    <span
+                                                        class="badge bg-primary bg-opacity-10 text-primary border border-primary px-2 py-1">
+                                                        <i class="bi bi-printer-fill me-1"></i>
+                                                        PM-{{ sprintf('%05d', $in->rental_id) }}
+                                                    </span>
+                                                </a>
+                                            </td>
+
                                             <td class="fw-bold">{{ $in->tenant_name }}</td>
                                             <td>
                                                 @if (strtoupper($in->payment_method) == 'CASH' || $in->payment_method == null)
@@ -214,7 +228,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="text-center text-muted py-4">Belum ada data
+                                            <td colspan="6" class="text-center text-muted py-4">Belum ada data
                                                 pemasukan.</td>
                                         </tr>
                                     @endforelse
