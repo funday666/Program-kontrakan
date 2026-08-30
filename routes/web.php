@@ -337,21 +337,42 @@ Route::middleware('auth')->group(function () {
         ));
     });
 
+    // === PERUBAHAN BARU: SIMPAN PENGELUARAN DENGAN TANGGAL KUSTOM ===
     Route::post('/laporan/tambah-pengeluaran', function (Request $request) {
+        // Tangkap tanggal yang dipilih di form, gabungkan dengan jam saat ini agar formatnya presisi
+        $waktuPengeluaran = $request->tanggal_pengeluaran ? $request->tanggal_pengeluaran . ' ' . date('H:i:s') : now();
+
         DB::table('expenses')->insert([
-            'category_name' => $request->category_name, 'amount' => $request->amount, 
-            'payment_method' => $request->payment_method, 'description' => $request->description, 
-            'created_by' => Auth::user()->name, 'created_at' => now()
+            'category_name' => $request->category_name, 
+            'amount' => $request->amount, 
+            'payment_method' => $request->payment_method, 
+            'description' => $request->description, 
+            'created_by' => Auth::user()->name, 
+            'created_at' => $waktuPengeluaran, // <- Menyimpan berdasarkan tanggal inputan form
+            'updated_at' => now()
         ]);
         return back()->with('sukses', 'Pengeluaran berhasil ditambahkan!');
     });
+    // ===============================================================
 
+    // === PERUBAHAN BARU: EDIT PENGELUARAN TERMASUK TANGGAL ===
     Route::post('/laporan/update-pengeluaran/{id}', function (Request $request, $id) {
-        DB::table('expenses')->where('id', $id)->update([
-            'amount' => $request->amount, 'payment_method' => $request->payment_method,
-            'description' => $request->description, 'updated_at' => now()
-        ]);
-        return back()->with('sukses', 'Data pengeluaran berhasil diubah!');
+        $dataUpdate = [
+            'amount' => $request->amount, 
+            'payment_method' => $request->payment_method,
+            'description' => $request->description, 
+            'updated_at' => now()
+        ];
+
+        // Jika tanggal diedit, gabungkan dengan jam asli agar waktunya tidak berubah jadi 00:00:00
+        if ($request->filled('tanggal_pengeluaran')) {
+            $dataLama = DB::table('expenses')->where('id', $id)->first();
+            $jamAsli = date('H:i:s', strtotime($dataLama->created_at));
+            $dataUpdate['created_at'] = $request->tanggal_pengeluaran . ' ' . $jamAsli;
+        }
+
+        DB::table('expenses')->where('id', $id)->update($dataUpdate);
+        return back()->with('sukses', 'Data pengeluaran berhasil diperbarui!');
     });
 
     Route::delete('/laporan/hapus-pengeluaran/{id}', function ($id) {

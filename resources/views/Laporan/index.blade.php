@@ -428,6 +428,13 @@
                                 <option value="Transfer">Transfer Bank</option>
                             </select>
                         </div>
+                        <!-- TAMBAHAN: INPUT TANGGAL PENGELUARAN -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" style="font-size: 13px;">Tanggal Pengeluaran</label>
+                            <input type="date" name="tanggal_pengeluaran" class="form-control"
+                                value="{{ date('Y-m-d') }}" required>
+                        </div>
+                        <!-- ===================================== -->
                         <div class="mb-3">
                             <label class="form-label fw-bold small">Nominal Keluar (Rp)</label>
                             <input type="number" name="amount" class="form-control" required>
@@ -457,6 +464,15 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body p-3 p-md-4">
+
+                        <!-- TAMBAHAN: EDIT TANGGAL PENGELUARAN -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" style="font-size: 13px;">Tanggal Pengeluaran</label>
+                            <input type="date" name="tanggal_pengeluaran" class="form-control border-primary"
+                                value="{{ date('Y-m-d', strtotime($exp->created_at)) }}" required>
+                        </div>
+                        <!-- ===================================== -->
+
                         <div class="mb-3">
                             <label class="form-label fw-bold small">Sumber Uang</label>
                             <select name="payment_method" class="form-select" required>
