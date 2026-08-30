@@ -419,6 +419,7 @@
                         <h5 class="modal-title fs-6">Catat Pengeluaran - {{ $nama }}</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
+                    {{-- Tampilan --}}
                     <div class="modal-body p-3 p-md-4">
                         <input type="hidden" name="category_name" value="{{ $nama }}">
                         <div class="mb-3">
