@@ -10,6 +10,7 @@ class LaporanKeuanganExport implements FromView, ShouldAutoSize
 {
     protected $data;
 
+    // Menerima data dari routes/web.php
     public function __construct($data)
     {
         $this->data = $data;
@@ -17,7 +18,7 @@ class LaporanKeuanganExport implements FromView, ShouldAutoSize
 
     public function view(): View
     {
-        // KUNCI PERBAIKAN: Mengarahkan ke file tampilan khusus Excel
-        return view('laporan.export_excel', $this->data);
+        // Ajaib: Memanggil file 'export.blade.php' yang sama persis dengan PDF!
+        return view('laporan.export', $this->data);
     }
 }

@@ -1,208 +1,273 @@
-<!DOCTYPE html>
-<html>
+@php
+    use Carbon\Carbon;
+    Carbon::setLocale('id'); 
 
-<head>
-    <title>Laporan Keuangan</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            font-size: 12px;
-        }
+    $groupedPemasukan = collect($historiPemasukan)->groupBy(function($item) {
+        return Carbon::parse($item->payment_date)->translatedFormat('F Y');
+    });
+    $groupedPengeluaran = collect($historiPengeluaran)->groupBy(function($item) {
+        return Carbon::parse($item->created_at)->translatedFormat('F Y');
+    });
+    $groupedMutasi = collect($historiMutasi)->groupBy(function($item) {
+        return Carbon::parse($item->created_at)->translatedFormat('F Y');
+    });
 
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
+    $periodeTeks = ($startDate && $endDate) ? date('d/m/Y', strtotime($startDate)) . ' s/d ' . date('d/m/Y', strtotime($endDate)) : 'Keseluruhan Waktu';
+@endphp
 
-        .header h2 {
-            margin: 0;
-            padding: 0;
-        }
-
-        .header p {
-            margin: 5px 0;
-            color: #555;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-
-        th,
-        td {
-            border: 1px solid #000;
-            padding: 6px 8px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #e9ecef;
-            font-weight: bold;
-        }
-
-        .text-right {
-            text-align: right;
-        }
-
-        .text-center {
-            text-align: center;
-        }
-
-        .text-success {
-            color: green;
-        }
-
-        .text-danger {
-            color: red;
-        }
-
-        .section-title {
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 8px;
-            background-color: #343a40;
-            color: white;
-            padding: 5px;
-        }
-
-        .summary-box {
-            border: 1px solid #000;
-            padding: 10px;
-            margin-bottom: 20px;
-        }
-    </style>
-</head>
-
-<body>
-
-    <div class="header">
-        <h2>LAPORAN KEUANGAN PANDE MESARI</h2>
-        <p>
-            Periode:
-            @if ($startDate || $endDate)
-                {{ $startDate ? date('d-m-Y', strtotime($startDate)) : 'Awal' }} s/d
-                {{ $endDate ? date('d-m-Y', strtotime($endDate)) : 'Sekarang' }}
-            @else
-                Keseluruhan (All-Time)
-            @endif
-        </p>
-    </div>
-
-    <div class="summary-box">
-        <strong>RANGKUMAN SALDO SAAT INI (ALL-TIME):</strong><br>
-        - Saldo Cash (Tunai Laci): Rp {{ number_format($saldoCash, 0, ',', '.') }}<br>
-        - Saldo Bank (Transfer): Rp {{ number_format($saldoTransfer, 0, ',', '.') }}<br>
-        - Piutang Belum Dibayar: Rp {{ number_format($totalPiutangSeluruh, 0, ',', '.') }}
-    </div>
-
-    <!-- TABEL 1: PEMASUKAN -->
-    <div class="section-title">HISTORI PEMASUKAN (SETORAN SEWA)</div>
+@if($isExcel)
+    {{-- ========================================================== --}}
+    {{-- DESAIN KHUSUS EXCEL (MURNI TABLE & TANPA SIMBOL "&")       --}}
+    {{-- ========================================================== --}}
     <table>
-        <thead>
+        <!-- HEADER UTAMA -->
+        <tr>
+            <td colspan="6" align="center" style="font-weight: bold; font-size: 14px;">LAPORAN KEUANGAN PANDE MESARI</td>
+        </tr>
+        <tr>
+            <td colspan="6" align="center">Periode: {{ $periodeTeks }}</td>
+        </tr>
+        <tr><td colspan="6"></td></tr>
+
+        <!-- RANGKUMAN SALDO -->
+        <tr><td colspan="6" style="font-weight: bold; font-size: 12px;">Rangkuman Saldo Saat Ini</td></tr>
+        <tr>
+            <th colspan="2" style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Total Saldo Uang Fisik (Cash)</th>
+            <th colspan="2" style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Total Saldo Bank (Transfer)</th>
+            <th colspan="2" style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Total Sisa Piutang (Belum Lunas)</th>
+        </tr>
+        <tr>
+            <td colspan="2" style="border: 1px solid #000000; font-weight: bold;">Rp {{ number_format($saldoCash, 0, ',', '.') }}</td>
+            <td colspan="2" style="border: 1px solid #000000; font-weight: bold;">Rp {{ number_format($saldoTransfer, 0, ',', '.') }}</td>
+            <td colspan="2" style="border: 1px solid #000000; font-weight: bold;">Rp {{ number_format($totalPiutangSeluruh, 0, ',', '.') }}</td>
+        </tr>
+        <tr><td colspan="6"></td></tr>
+
+        <!-- TABEL PEMASUKAN -->
+        <tr><td colspan="6" style="font-weight: bold; font-size: 12px;">1. Histori Pemasukan Dana</td></tr>
+        <tr>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Tanggal</th>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">No. Nota</th>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Nama Penyewa</th>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Metode</th>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Nominal Masuk</th>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Pencatat</th>
+        </tr>
+        @forelse($groupedPemasukan as $bulan => $items)
             <tr>
-                <th width="30">No</th>
-                <th>Tanggal</th>
-                <th>Nama Penyewa</th>
-                <th>Metode</th>
-                <th>Dicatat Oleh</th>
-                <th class="text-right">Nominal Masuk</th>
+                <td colspan="6" style="font-weight: bold; border: 1px solid #000000; background-color: #d1e7dd;">Bulan: {{ $bulan }}</td>
             </tr>
-        </thead>
-        <tbody>
-            @php $totalMasuk = 0; @endphp
-            @forelse($historiPemasukan as $index => $in)
-                @php $totalMasuk += $in->amount_paid; @endphp
-                <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ date('d-m-Y', strtotime($in->payment_date)) }}</td>
-                    <td>{{ $in->tenant_name }}</td>
-                    <td>{{ $in->payment_method ?? 'Cash' }}</td>
-                    <td>{{ $in->created_by ?? 'Admin' }}</td>
-                    <td class="text-right text-success">+ Rp {{ number_format($in->amount_paid, 0, ',', '.') }}</td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="6" class="text-center">Tidak ada transaksi pemasukan pada periode ini.</td>
-                </tr>
-            @endforelse
+            @foreach($items as $row)
             <tr>
-                <td colspan="5" class="text-right" style="font-weight:bold;">TOTAL PEMASUKAN:</td>
-                <td class="text-right" style="font-weight:bold;">Rp {{ number_format($totalMasuk, 0, ',', '.') }}</td>
+                <td style="border: 1px solid #000000;">{{ date('d/m/Y', strtotime($row->payment_date)) }}</td>
+                <td style="border: 1px solid #000000;">PM-{{ sprintf('%05d', $row->rental_id) }}</td>
+                <td style="border: 1px solid #000000;">{{ $row->tenant_name }}</td>
+                <td style="border: 1px solid #000000;">{{ $row->payment_method ?? 'Cash' }}</td>
+                <td style="border: 1px solid #000000;">Rp {{ number_format($row->amount_paid, 0, ',', '.') }}</td>
+                <td style="border: 1px solid #000000;">{{ $row->created_by ?? 'Admin' }}</td>
             </tr>
-        </tbody>
+            @endforeach
+        @empty
+            <tr><td colspan="6" align="center" style="border: 1px solid #000000;">Belum ada histori pemasukan.</td></tr>
+        @endforelse
+        <tr><td colspan="6"></td></tr>
+
+        <!-- TABEL PENGELUARAN -->
+        <tr><td colspan="6" style="font-weight: bold; font-size: 12px;">2. Histori Pengeluaran Dana</td></tr>
+        <tr>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Tanggal</th>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Kategori</th>
+            <th colspan="2" style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Keterangan dan Sumber Dana</th>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Nominal Keluar</th>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Pencatat</th>
+        </tr>
+        @forelse($groupedPengeluaran as $bulan => $items)
+            <tr>
+                <td colspan="6" style="font-weight: bold; border: 1px solid #000000; background-color: #d1e7dd;">Bulan: {{ $bulan }}</td>
+            </tr>
+            @foreach($items as $row)
+            <tr>
+                <td style="border: 1px solid #000000;">{{ date('d/m/Y', strtotime($row->created_at)) }}</td>
+                <td style="border: 1px solid #000000;">{{ $row->category_name }}</td>
+                <td colspan="2" style="border: 1px solid #000000;">{{ $row->description }} ({{ $row->payment_method ?? 'Cash' }})</td>
+                <td style="border: 1px solid #000000;">Rp {{ number_format($row->amount, 0, ',', '.') }}</td>
+                <td style="border: 1px solid #000000;">{{ $row->created_by ?? 'Admin' }}</td>
+            </tr>
+            @endforeach
+        @empty
+            <tr><td colspan="6" align="center" style="border: 1px solid #000000;">Belum ada histori pengeluaran.</td></tr>
+        @endforelse
+        <tr><td colspan="6"></td></tr>
+
+        <!-- TABEL MUTASI -->
+        <tr><td colspan="6" style="font-weight: bold; font-size: 12px;">3. Histori Mutasi (Pindah Dana)</td></tr>
+        <tr>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Waktu Transaksi</th>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Jenis Mutasi</th>
+            <th colspan="2" style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Keterangan</th>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Nominal</th>
+            <th style="font-weight: bold; border: 1px solid #000000; background-color: #f2f2f2;">Pencatat</th>
+        </tr>
+        @forelse($groupedMutasi as $bulan => $items)
+            <tr>
+                <td colspan="6" style="font-weight: bold; border: 1px solid #000000; background-color: #d1e7dd;">Bulan: {{ $bulan }}</td>
+            </tr>
+            @foreach($items as $row)
+            <tr>
+                <td style="border: 1px solid #000000;">{{ date('d/m/Y H:i', strtotime($row->created_at)) }}</td>
+                <td style="border: 1px solid #000000;">{{ $row->type }}</td>
+                <td colspan="2" style="border: 1px solid #000000;">{{ $row->description }}</td>
+                <td style="border: 1px solid #000000;">Rp {{ number_format($row->amount, 0, ',', '.') }}</td>
+                <td style="border: 1px solid #000000;">{{ $row->created_by ?? 'Admin' }}</td>
+            </tr>
+            @endforeach
+        @empty
+            <tr><td colspan="6" align="center" style="border: 1px solid #000000;">Belum ada histori mutasi dana.</td></tr>
+        @endforelse
     </table>
 
-    <!-- TABEL 2: PENGELUARAN -->
-    <div class="section-title">HISTORI PENGELUARAN (PENGGUNAAN DANA)</div>
-    <table>
-        <thead>
-            <tr>
-                <th width="30">No</th>
-                <th>Tanggal</th>
-                <th>Kategori (Bagi Hasil)</th>
-                <th>Keterangan</th>
-                <th>Sumber Dana</th>
-                <th class="text-right">Nominal Keluar</th>
-            </tr>
-        </thead>
-        <tbody>
-            @php $totalKeluar = 0; @endphp
-            @forelse($historiPengeluaran as $index => $exp)
-                @php $totalKeluar += $exp->amount; @endphp
-                <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ date('d-m-Y', strtotime($exp->created_at)) }}</td>
-                    <td>{{ $exp->category_name }}</td>
-                    <td>{{ $exp->description }}</td>
-                    <td>{{ $exp->payment_method ?? 'Cash' }}</td>
-                    <td class="text-right text-danger">- Rp {{ number_format($exp->amount, 0, ',', '.') }}</td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="6" class="text-center">Tidak ada transaksi pengeluaran pada periode ini.</td>
-                </tr>
-            @endforelse
-            <tr>
-                <td colspan="5" class="text-right" style="font-weight:bold;">TOTAL PENGELUARAN:</td>
-                <td class="text-right" style="font-weight:bold;">Rp {{ number_format($totalKeluar, 0, ',', '.') }}</td>
-            </tr>
-        </tbody>
-    </table>
+@else
+    {{-- ========================================================== --}}
+    {{-- DESAIN KHUSUS PDF (MENGGUNAKAN HTML LENGKAP & RAPI)        --}}
+    {{-- ========================================================== --}}
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+        <meta charset="UTF-8">
+        <title>Laporan Keuangan Pande Mesari</title>
+        <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #333; }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .font-bold { font-weight: bold; }
+            .mb-2 { margin-bottom: 15px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: middle; }
+            th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
+            .month-header { background-color: #d1e7dd; font-weight: bold; text-align: left; font-size: 12pt; }
+            .summary-box { background-color: #e2e3e5; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="text-center mb-2">
+            <h2 style="margin: 0;">LAPORAN KEUANGAN PANDE MESARI</h2>
+            <p style="margin: 5px 0;">Periode: {{ $periodeTeks }}</p>
+        </div>
 
-    <!-- TABEL 3: MUTASI DANA -->
-    <div class="section-title">HISTORI MUTASI (PINDAH DANA TARIK/SETOR)</div>
-    <table>
-        <thead>
+        <!-- TABEL RANGKUMAN -->
+        <h3>Rangkuman Saldo Saat Ini</h3>
+        <table>
             <tr>
-                <th width="30">No</th>
-                <th>Tanggal & Waktu</th>
-                <th>Jenis Mutasi</th>
-                <th>Keterangan</th>
-                <th class="text-right">Nominal Dipindahkan</th>
+                <th>Total Saldo Uang Fisik (Cash)</th>
+                <th>Total Saldo Bank (Transfer)</th>
+                <th>Total Sisa Piutang (Belum Lunas)</th>
             </tr>
-        </thead>
-        <tbody>
-            @forelse($historiMutasi as $index => $mutasi)
-                <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ date('d-m-Y H:i', strtotime($mutasi->created_at)) }}</td>
-                    <td>{{ $mutasi->type }}</td>
-                    <td>{{ $mutasi->description }}</td>
-                    <td class="text-right">Rp {{ number_format($mutasi->amount, 0, ',', '.') }}</td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="5" class="text-center">Tidak ada transaksi mutasi pada periode ini.</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+            <tr>
+                <td class="text-right font-bold summary-box">Rp {{ number_format($saldoCash, 0, ',', '.') }}</td>
+                <td class="text-right font-bold summary-box">Rp {{ number_format($saldoTransfer, 0, ',', '.') }}</td>
+                <td class="text-right font-bold summary-box">Rp {{ number_format($totalPiutangSeluruh, 0, ',', '.') }}</td>
+            </tr>
+        </table>
 
-    <div style="margin-top: 30px; text-align: right;">
-        Dicetak pada: {{ date('d-m-Y H:i:s') }}
-    </div>
-</body>
+        <!-- TABEL PEMASUKAN -->
+        <h3>1. Histori Pemasukan Dana</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Tanggal</th>
+                    <th style="width: 15%;">No. Nota</th>
+                    <th style="width: 25%;">Nama Penyewa</th>
+                    <th style="width: 15%;">Metode</th>
+                    <th style="width: 15%;">Nominal</th>
+                    <th style="width: 15%;">Pencatat</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($groupedPemasukan as $bulan => $items)
+                    <tr>
+                        <td colspan="6" class="month-header">Bulan: {{ $bulan }}</td>
+                    </tr>
+                    @foreach($items as $row)
+                    <tr>
+                        <td class="text-center">{{ date('d/m/Y', strtotime($row->payment_date)) }}</td>
+                        <td class="text-center">PM-{{ sprintf('%05d', $row->rental_id) }}</td>
+                        <td>{{ $row->tenant_name }}</td>
+                        <td class="text-center">{{ $row->payment_method ?? 'Cash' }}</td>
+                        <td class="text-right">Rp {{ number_format($row->amount_paid, 0, ',', '.') }}</td>
+                        <td class="text-center">{{ $row->created_by ?? 'Admin' }}</td>
+                    </tr>
+                    @endforeach
+                @empty
+                    <tr><td colspan="6" class="text-center">Belum ada histori pemasukan.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
 
-</html>
+        <!-- TABEL PENGELUARAN -->
+        <h3>2. Histori Pengeluaran Dana</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Tanggal</th>
+                    <th style="width: 20%;">Kategori</th>
+                    <th style="width: 30%;">Keterangan</th>
+                    <th style="width: 10%;">Sumber</th>
+                    <th style="width: 15%;">Nominal</th>
+                    <th style="width: 10%;">Pencatat</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($groupedPengeluaran as $bulan => $items)
+                    <tr>
+                        <td colspan="6" class="month-header">Bulan: {{ $bulan }}</td>
+                    </tr>
+                    @foreach($items as $row)
+                    <tr>
+                        <td class="text-center">{{ date('d/m/Y', strtotime($row->created_at)) }}</td>
+                        <td>{{ $row->category_name }}</td>
+                        <td>{{ $row->description }}</td>
+                        <td class="text-center">{{ $row->payment_method ?? 'Cash' }}</td>
+                        <td class="text-right">Rp {{ number_format($row->amount, 0, ',', '.') }}</td>
+                        <td class="text-center">{{ $row->created_by ?? 'Admin' }}</td>
+                    </tr>
+                    @endforeach
+                @empty
+                    <tr><td colspan="6" class="text-center">Belum ada histori pengeluaran.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+
+        <!-- TABEL MUTASI DANA -->
+        <h3>3. Histori Mutasi (Pindah Dana)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 20%;">Waktu Transaksi</th>
+                    <th style="width: 25%;">Jenis Mutasi</th>
+                    <th style="width: 25%;">Keterangan</th>
+                    <th style="width: 15%;">Nominal</th>
+                    <th style="width: 15%;">Pencatat</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($groupedMutasi as $bulan => $items)
+                    <tr>
+                        <td colspan="5" class="month-header">Bulan: {{ $bulan }}</td>
+                    </tr>
+                    @foreach($items as $row)
+                    <tr>
+                        <td class="text-center">{{ date('d/m/Y H:i', strtotime($row->created_at)) }}</td>
+                        <td>{{ $row->type }}</td>
+                        <td>{{ $row->description }}</td>
+                        <td class="text-right">Rp {{ number_format($row->amount, 0, ',', '.') }}</td>
+                        <td class="text-center">{{ $row->created_by ?? 'Admin' }}</td>
+                    </tr>
+                    @endforeach
+                @empty
+                    <tr><td colspan="5" class="text-center">Belum ada histori mutasi dana.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </body>
+    </html>
+@endif

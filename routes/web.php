@@ -43,7 +43,6 @@ Route::get('/sewa-lahan/cetak-nota/{id}', function ($id) {
 // AREA KHUSUS (Wajib Login)
 Route::middleware('auth')->group(function () {
 
-    // === HALAMAN VIEW (SEMUA BISA MELIHAT) ===
     Route::get('/sewa-lahan', function (Request $request) {
         $search = $request->input('search'); $status = $request->input('status'); $waktu = $request->input('waktu'); 
         $subQuery = DB::table('rentals')->select('rentals.*', DB::raw('(SELECT COALESCE(SUM(amount_paid), 0) FROM payment_details WHERE payment_details.rental_id = rentals.id) as total_dibayar'));
@@ -90,7 +89,8 @@ Route::middleware('auth')->group(function () {
         foreach ($kategori as $nama => $persen) {
             $jatahAwal = $totalTerbayarSeluruh * $persen;
             $totalKeluar = DB::table('expenses')->where('category_name', $nama)->sum('amount');
-            $pembagian[$nama] = ['pemasukan' => $jatahAwal, 'pengeluaran' => $totalKeluar, 'sisa' => $jatahAwal - $totalKeluar];
+            $histori = DB::table('expenses')->where('category_name', $nama)->orderBy('created_at', 'desc')->limit(5)->get();
+            $pembagian[$nama] = ['pemasukan' => $jatahAwal, 'pengeluaran' => $totalKeluar, 'sisa' => $jatahAwal - $totalKeluar, 'histori' => $histori];
         }
         $pemasukanCash = DB::table('payment_details')->where(function($q) { $q->where('payment_method', 'Cash')->orWhereNull('payment_method'); })->sum('amount_paid');
         $pemasukanTransfer = DB::table('payment_details')->where('payment_method', 'Transfer')->sum('amount_paid');
@@ -98,22 +98,76 @@ Route::middleware('auth')->group(function () {
         $pengeluaranTransfer = DB::table('expenses')->where('payment_method', 'Transfer')->sum('amount');
         $tarikTunai = DB::table('balance_mutations')->where('type', 'Tarik Tunai')->sum('amount');
         $setorTunai = DB::table('balance_mutations')->where('type', 'Setor Tunai')->sum('amount');
+        
         $saldoCash = $pemasukanCash - $pengeluaranCash + $tarikTunai - $setorTunai;
         $saldoTransfer = $pemasukanTransfer - $pengeluaranTransfer - $tarikTunai + $setorTunai;
 
-        $startDate = $request->input('start_date'); $endDate = $request->input('end_date');
+        return view('laporan.index', compact('totalHargaSeluruh', 'totalTerbayarSeluruh', 'totalPiutangSeluruh', 'pembagian', 'saldoCash', 'saldoTransfer'));
+    });
+
+    // === NEW MENU DENGAN FITUR SEARCHING ===
+    Route::get('/histori/{jenis}', function (Request $request, $jenis) {
+        $startDate = $request->input('start_date'); 
+        $endDate = $request->input('end_date');
+        $search = $request->input('search'); // Tangkap kata kunci pencarian
+        $isViewer = strpos(strtolower(Auth::user()->email), 'viewer') !== false;
+
         $filterDate = function($query, $column) use ($startDate, $endDate) {
             if ($startDate) $query->whereDate($column, '>=', $startDate);
             if ($endDate) $query->whereDate($column, '<=', $endDate); return $query;
         };
 
-        $historiPengeluaran = $filterDate(DB::table('expenses')->orderBy('created_at', 'desc'), 'created_at')->paginate(5, ['*'], 'pengeluaran_page')->appends($request->query());
-        $historiPemasukan = $filterDate(DB::table('payment_details')->join('rentals', 'payment_details.rental_id', '=', 'rentals.id')->select('payment_details.*', 'rentals.tenant_name')->orderBy('payment_details.payment_date', 'desc'), 'payment_details.payment_date')->paginate(5, ['*'], 'pemasukan_page')->appends($request->query());
-        $historiMutasi = $filterDate(DB::table('balance_mutations')->orderBy('created_at', 'desc'), 'created_at')->paginate(5, ['*'], 'mutasi_page')->appends($request->query());
+        if ($jenis == 'pemasukan') {
+            $query = DB::table('payment_details')
+                        ->join('rentals', 'payment_details.rental_id', '=', 'rentals.id')
+                        ->select('payment_details.*', 'rentals.tenant_name');
+            $query = $filterDate($query, 'payment_details.payment_date');
+            
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('rentals.tenant_name', 'like', "%{$search}%")
+                      ->orWhere('payment_details.payment_method', 'like', "%{$search}%")
+                      ->orWhere('payment_details.created_by', 'like', "%{$search}%");
+                });
+            }
+            $data = $query->orderBy('payment_details.payment_date', 'desc')->paginate(15)->appends($request->query());
+            $judul = 'Histori Pemasukan'; $icon = 'bi-box-arrow-in-down-left text-success';
+            
+        } elseif ($jenis == 'pengeluaran') {
+            $query = DB::table('expenses');
+            $query = $filterDate($query, 'created_at');
+            
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('category_name', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%")
+                      ->orWhere('payment_method', 'like', "%{$search}%")
+                      ->orWhere('created_by', 'like', "%{$search}%");
+                });
+            }
+            $data = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
+            $judul = 'Histori Pengeluaran'; $icon = 'bi-box-arrow-up-right text-danger';
+            
+        } elseif ($jenis == 'mutasi') {
+            $query = DB::table('balance_mutations');
+            $query = $filterDate($query, 'created_at');
+            
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('type', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%")
+                      ->orWhere('created_by', 'like', "%{$search}%");
+                });
+            }
+            $data = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
+            $judul = 'Histori Mutasi Dana'; $icon = 'bi-arrow-left-right text-info';
+            
+        } else { abort(404); }
 
-        return view('laporan.index', compact('totalHargaSeluruh', 'totalTerbayarSeluruh', 'totalPiutangSeluruh', 'pembagian', 'historiPengeluaran', 'historiPemasukan', 'historiMutasi', 'saldoCash', 'saldoTransfer'));
+        return view('laporan.histori', compact('data', 'jenis', 'judul', 'icon', 'isViewer'));
     });
 
+    // === EXPORT DATA ===
     Route::get('/laporan-keuangan/export/{type}', function (Request $request, $type) {
         $startDate = $request->input('start_date'); $endDate = $request->input('end_date');
         $filterDate = function($query, $column) use ($startDate, $endDate) {
@@ -138,15 +192,10 @@ Route::middleware('auth')->group(function () {
         } elseif ($type == 'pdf') {
             $isExcel = false; $data = compact('startDate', 'endDate', 'saldoCash', 'saldoTransfer', 'totalPiutangSeluruh', 'historiPengeluaran', 'historiPemasukan', 'historiMutasi', 'isExcel');
             $pdf = Pdf::loadView('laporan.export', $data)->setPaper('a4', 'portrait'); return $pdf->stream($namaFile . '.pdf');
-        }
-        abort(404);
+        } abort(404);
     });
 
-    // =====================================================================
-    // BLOK AKSI: DILINDUNGI PENUH (AKUN DENGAN KATA 'VIEWER' AKAN DITOLAK)
-    // =====================================================================
-    
-    // 1. MANAJEMEN USER
+    // === BLOK AKSI DATABASE ===
     Route::post('/manajemen-user/simpan', function (Request $request) {
         if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak: Anda masuk sebagai Pemantau.']);
         $request->validate(['name' => 'required|string|max:255', 'email' => 'required|email|unique:users,email', 'password' => 'required|min:6']);
@@ -166,7 +215,6 @@ Route::middleware('auth')->group(function () {
         DB::table('users')->where('id', $id)->delete(); return redirect('/users')->with('sukses', 'Akun admin berhasil dihapus!');
     });
 
-    // 2. SEWA LAHAN & CICILAN
     Route::post('/sewa-lahan/simpan', function (Request $request) {
         if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak: Anda masuk sebagai Pemantau.']);
         $luas = $request->rented_length * $request->rented_width;
@@ -204,7 +252,6 @@ Route::middleware('auth')->group(function () {
         DB::table('payment_details')->where('id', $id)->delete(); return redirect('/sewa-lahan')->with('sukses', 'Histori setoran dihapus!');
     });
 
-    // 3. PENGELUARAN & MUTASI
     Route::post('/laporan/tambah-pengeluaran', function (Request $request) {
         if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak: Anda masuk sebagai Pemantau.']);
         $waktuPengeluaran = $request->tanggal_pengeluaran ? $request->tanggal_pengeluaran . ' ' . date('H:i:s') : now();
@@ -232,5 +279,42 @@ Route::middleware('auth')->group(function () {
     Route::delete('/laporan/hapus-mutasi/{id}', function ($id) {
         if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak: Anda masuk sebagai Pemantau.']);
         DB::table('balance_mutations')->where('id', $id)->delete(); return back()->with('sukses', 'Riwayat mutasi dihapus!');
+    });
+
+    // =================================================================
+    // TAMBAHAN: UPDATE & HAPUS PEMASUKAN DARI HALAMAN HISTORI
+    // =================================================================
+    Route::post('/histori/update-pemasukan/{id}', function (Request $request, $id) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak: Anda masuk sebagai Pemantau.']);
+        DB::table('payment_details')->where('id', $id)->update([
+            'payment_date' => $request->payment_date,
+            'amount_paid' => $request->amount_paid,
+            'payment_method' => $request->payment_method,
+            'updated_at' => now()
+        ]);
+        return back()->with('sukses', 'Data pemasukan berhasil diperbarui!');
+    });
+
+    Route::delete('/histori/hapus-pemasukan/{id}', function ($id) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak: Anda masuk sebagai Pemantau.']);
+        DB::table('payment_details')->where('id', $id)->delete();
+        return back()->with('sukses', 'Data pemasukan berhasil dihapus!');
+    });
+
+    // =================================================================
+    // TAMBAHAN: UPDATE MUTASI DARI HALAMAN HISTORI
+    // =================================================================
+    Route::post('/histori/update-mutasi/{id}', function (Request $request, $id) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak: Anda masuk sebagai Pemantau.']);
+        $dataLama = DB::table('balance_mutations')->where('id', $id)->first();
+        $waktu = $request->tanggal_mutasi ? $request->tanggal_mutasi . ' ' . date('H:i:s', strtotime($dataLama->created_at)) : $dataLama->created_at;
+        
+        DB::table('balance_mutations')->where('id', $id)->update([
+            'type' => $request->type,
+            'amount' => $request->amount,
+            'description' => $request->description,
+            'created_at' => $waktu
+        ]);
+        return back()->with('sukses', 'Data mutasi berhasil diperbarui!');
     });
 });
