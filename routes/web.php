@@ -317,4 +317,85 @@ Route::middleware('auth')->group(function () {
         ]);
         return back()->with('sukses', 'Data mutasi berhasil diperbarui!');
     });
+
+    // =================================================================
+    // MODUL TAGIHAN AIR & LISTRIK
+    // =================================================================
+    Route::get('/tagihan-utilitas', function (Request $request) {
+        $search = $request->input('search');
+        $status = $request->input('status');
+        
+        $query = DB::table('utility_bills')
+            ->join('rentals', 'utility_bills.rental_id', '=', 'rentals.id')
+            ->select('utility_bills.*', 'rentals.tenant_name');
+            
+        if ($search) $query->where('rentals.tenant_name', 'like', "%{$search}%");
+        if ($status) $query->where('utility_bills.status_bayar', $status);
+        
+        $dataTagihan = $query->orderBy('utility_bills.created_at', 'desc')->paginate(15)->appends($request->query());
+        $dataRentals = DB::table('rentals')->orderBy('tenant_name', 'asc')->get();
+        
+        return view('tagihan.index', compact('dataTagihan', 'dataRentals'));
+    });
+
+    Route::post('/tagihan-utilitas/simpan', function (Request $request) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
+        
+        $wAwal = $request->meter_air_awal ?: 0; $wAkhir = $request->meter_air_akhir ?: 0; $wTarif = $request->tarif_air ?: 0;
+        $eAwal = $request->meter_listrik_awal ?: 0; $eAkhir = $request->meter_listrik_akhir ?: 0; $eTarif = $request->tarif_listrik ?: 0;
+        $bLain = $request->biaya_lain ?: 0;
+        
+        $wTotal = max(0, $wAkhir - $wAwal) * $wTarif;
+        $eTotal = max(0, $eAkhir - $eAwal) * $eTarif;
+        $grandTotal = $wTotal + $eTotal + $bLain;
+
+        DB::table('utility_bills')->insert([
+            'rental_id' => $request->rental_id,
+            'periode_bulan' => $request->periode_bulan,
+            'meter_air_awal' => $wAwal, 'meter_air_akhir' => $wAkhir, 'tarif_air' => $wTarif, 'total_air' => $wTotal,
+            'meter_listrik_awal' => $eAwal, 'meter_listrik_akhir' => $eAkhir, 'tarif_listrik' => $eTarif, 'total_listrik' => $eTotal,
+            'biaya_lain' => $bLain, 'keterangan_biaya_lain' => $request->keterangan_biaya_lain,
+            'total_tagihan' => $grandTotal,
+            'status_bayar' => $request->status_bayar,
+            'metode_pembayaran' => $request->metode_pembayaran, // <--- Menyimpan Metode Pembayaran
+            'created_by' => Auth::user()->name,
+            'created_at' => now(), 'updated_at' => now()
+        ]);
+        return back()->with('sukses', 'Tagihan Air & Listrik berhasil dicatat!');
+    });
+
+    Route::post('/tagihan-utilitas/bayar/{id}', function (Request $request, $id) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
+        
+        DB::table('utility_bills')->where('id', $id)->update([
+            'status_bayar' => 'Lunas', 
+            'metode_pembayaran' => $request->metode_pembayaran, // <--- Update Metode Pembayaran
+            'updated_at' => now()
+        ]);
+        return back()->with('sukses', 'Tagihan berhasil ditandai Lunas!');
+    });
+
+    Route::delete('/tagihan-utilitas/hapus/{id}', function ($id) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
+        DB::table('utility_bills')->where('id', $id)->delete();
+        return back()->with('sukses', 'Data tagihan berhasil dihapus!');
+    });
+
+    // =================================================================
+    // API AUTO-FILL METERAN BULAN LALU (AIR & LISTRIK)
+    // =================================================================
+    // =================================================================
+    // API AUTO-FILL METERAN BULAN LALU (AIR & LISTRIK)
+    // =================================================================
+    Route::get('/tagihan-utilitas/get-meter-terakhir/{rental_id}', function ($rental_id) {
+        $lastBill = DB::table('utility_bills')
+            ->where('rental_id', $rental_id)
+            ->orderBy('id', 'desc') // <--- UBAH BAGIAN INI MENJADI BERDASARKAN ID TERBESAR
+            ->first();
+
+        return response()->json([
+            'air_awal' => $lastBill ? (float) $lastBill->meter_air_akhir : 0,
+            'listrik_awal' => $lastBill ? (float) $lastBill->meter_listrik_akhir : 0
+        ]);
+    });
 });

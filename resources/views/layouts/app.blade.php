@@ -71,6 +71,7 @@
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
         }
+
         .hide-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
@@ -107,6 +108,7 @@
         .dropdown-toggle-icon {
             transition: transform 0.3s ease;
         }
+
         .nav-link[aria-expanded="true"] .dropdown-toggle-icon {
             transform: rotate(180deg);
         }
@@ -151,36 +153,37 @@
                         <i class="bi bi-grid-1x2-fill"></i> Dashboard
                     </a>
                 </li>
-                
+
                 <!-- Menu DROPDOWN Histori -->
                 <li class="nav-item mt-1">
-                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('histori/*') ? 'active' : '' }}" 
-                       data-bs-toggle="collapse" 
-                       href="#collapseHistori" 
-                       role="button" 
-                       aria-expanded="{{ request()->is('histori/*') ? 'true' : 'false' }}" 
-                       aria-controls="collapseHistori">
+                    <a class="nav-link d-flex justify-content-between align-items-center {{ request()->is('histori/*') ? 'active' : '' }}"
+                        data-bs-toggle="collapse" href="#collapseHistori" role="button"
+                        aria-expanded="{{ request()->is('histori/*') ? 'true' : 'false' }}"
+                        aria-controls="collapseHistori">
                         <div>
                             <i class="bi bi-clock-history"></i> Histori Transaksi
                         </div>
                         <i class="bi bi-chevron-down fs-6 dropdown-toggle-icon" style="width: auto;"></i>
                     </a>
-                    
+
                     <!-- Isi Dropdown (Sub-menu) -->
                     <div class="collapse {{ request()->is('histori/*') ? 'show' : '' }}" id="collapseHistori">
                         <ul class="nav flex-column ms-3 mt-1 mb-2" style="border-left: 2px solid #e9ecef;">
                             <li class="nav-item ps-2 mb-1">
-                                <a class="nav-link text-muted py-2 {{ request()->is('histori/pemasukan') ? 'fw-bold text-primary bg-light' : '' }}" href="{{ url('/histori/pemasukan') }}" style="font-size: 0.9rem;">
+                                <a class="nav-link text-muted py-2 {{ request()->is('histori/pemasukan') ? 'fw-bold text-primary bg-light' : '' }}"
+                                    href="{{ url('/histori/pemasukan') }}" style="font-size: 0.9rem;">
                                     <i class="bi bi-box-arrow-in-down-left fs-6"></i> Pemasukan
                                 </a>
                             </li>
                             <li class="nav-item ps-2 mb-1">
-                                <a class="nav-link text-muted py-2 {{ request()->is('histori/pengeluaran') ? 'fw-bold text-primary bg-light' : '' }}" href="{{ url('/histori/pengeluaran') }}" style="font-size: 0.9rem;">
+                                <a class="nav-link text-muted py-2 {{ request()->is('histori/pengeluaran') ? 'fw-bold text-primary bg-light' : '' }}"
+                                    href="{{ url('/histori/pengeluaran') }}" style="font-size: 0.9rem;">
                                     <i class="bi bi-box-arrow-up-right fs-6"></i> Pengeluaran
                                 </a>
                             </li>
                             <li class="nav-item ps-2">
-                                <a class="nav-link text-muted py-2 {{ request()->is('histori/mutasi') ? 'fw-bold text-primary bg-light' : '' }}" href="{{ url('/histori/mutasi') }}" style="font-size: 0.9rem;">
+                                <a class="nav-link text-muted py-2 {{ request()->is('histori/mutasi') ? 'fw-bold text-primary bg-light' : '' }}"
+                                    href="{{ url('/histori/mutasi') }}" style="font-size: 0.9rem;">
                                     <i class="bi bi-arrow-left-right fs-6"></i> Mutasi Dana
                                 </a>
                             </li>
@@ -193,6 +196,14 @@
                     <a href="{{ url('/sewa-lahan') }}"
                         class="nav-link {{ request()->is('sewa-lahan*') ? 'active' : '' }}">
                         <i class="bi bi-card-checklist"></i> Data Kontrak Sewa
+                    </a>
+                </li>
+
+                <!-- Menu Tagihan Air & Listrik (Diperbaiki) -->
+                <li class="nav-item">
+                    <a href="{{ url('/tagihan-utilitas') }}"
+                        class="nav-link {{ request()->is('tagihan-utilitas*') ? 'active' : '' }}">
+                        <i class="bi bi-lightning-charge-fill"></i> Tagihan Air & Listrik
                     </a>
                 </li>
 
