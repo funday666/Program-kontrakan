@@ -28,19 +28,26 @@ Route::post('/logout', function (Request $request) {
     return redirect('/login');
 });
 
+// =================================================================
 // ROUTE PUBLIK
+// =================================================================
 Route::get('/sewa-lahan/cetak-nota/{id}', function ($id) {
     $rental = DB::table('rentals')->where('id', $id)->first();
     if (!$rental) abort(404, 'Data nota tidak ditemukan.');
-    $histori = DB::table('payment_details')->where('rental_id', $id)->get();
     
-    $pdf = Pdf::setOptions(['isRemoteEnabled' => true])
-              ->loadView('rentals.nota', compact('rental', 'histori'))
-              ->setPaper('a5', 'landscape');
-    return $pdf->stream('Kwitansi_'.$rental->tenant_name.'.pdf');
+    // Ambil histori pembayaran (diurutkan dari yang paling awal)
+    $histori = DB::table('payment_details')
+                 ->where('rental_id', $id)
+                 ->orderBy('payment_date', 'asc')
+                 ->get();
+    
+    // Mereturn view HTML Pratinjau Kertas untuk dicetak
+    return view('rentals.nota', compact('rental', 'histori'));
 });
 
+// =================================================================
 // AREA KHUSUS (Wajib Login)
+// =================================================================
 Route::middleware('auth')->group(function () {
 
     Route::get('/sewa-lahan', function (Request $request) {
@@ -384,9 +391,6 @@ Route::middleware('auth')->group(function () {
     // =================================================================
     // API AUTO-FILL METERAN BULAN LALU (AIR & LISTRIK)
     // =================================================================
-    // =================================================================
-    // API AUTO-FILL METERAN BULAN LALU (AIR & LISTRIK)
-    // =================================================================
     Route::get('/tagihan-utilitas/get-meter-terakhir/{rental_id}', function ($rental_id) {
         $lastBill = DB::table('utility_bills')
             ->where('rental_id', $rental_id)
@@ -397,5 +401,144 @@ Route::middleware('auth')->group(function () {
             'air_awal' => $lastBill ? (float) $lastBill->meter_air_akhir : 0,
             'listrik_awal' => $lastBill ? (float) $lastBill->meter_listrik_akhir : 0
         ]);
+    });
+
+    // =================================================================
+    // MODUL DATA PROPERTY
+    // =================================================================
+    Route::get('/data-property', function (Request $request) {
+        $search = $request->input('search');
+        $query = DB::table('property_rentals');
+        
+        if ($search) {
+            $query->where('nama_penyewa', 'like', "%{$search}%");
+        }
+        
+        $dataProperty = $query->orderBy('created_at', 'desc')->paginate(10)->appends($request->query());
+        return view('property.index', compact('dataProperty'));
+    });
+
+    Route::post('/data-property/simpan', function (Request $request) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
+        
+        // Simpan data property dan ambil ID-nya
+        $propId = DB::table('property_rentals')->insertGetId([
+            'nama_penyewa' => $request->nama_penyewa,
+            'no_whatsapp' => $request->no_whatsapp,
+            'panjang' => $request->panjang,
+            'lebar' => $request->lebar,
+            'durasi_bulan' => $request->durasi_bulan,
+            'harga_per_tahun' => $request->harga_per_tahun,
+            'jenis_pembayaran' => $request->jenis_pembayaran,
+            'nominal_dp' => $request->nominal_dp ?: 0,
+            'metode_dp' => $request->nominal_dp > 0 ? $request->metode_dp : null,
+            'total_pembayaran' => $request->total_pembayaran,
+            'catatan' => $request->catatan,
+            'created_by' => Auth::user()->name,
+            'created_at' => now(), 'updated_at' => now()
+        ]);
+
+        // Jika ada DP Awal, catat di riwayat pembayaran
+        if ($request->nominal_dp > 0) {
+            DB::table('property_payments')->insert([
+                'property_id' => $propId,
+                'nominal_bayar' => $request->nominal_dp,
+                'admin_name' => Auth::user()->name,
+                'created_at' => now()
+            ]);
+        }
+
+        return back()->with('sukses', 'Data property berhasil disimpan!');
+    });
+
+    Route::post('/data-property/update/{id}', function (Request $request, $id) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
+        
+        DB::table('property_rentals')->where('id', $id)->update([
+            'nama_penyewa' => $request->nama_penyewa,
+            'no_whatsapp' => $request->no_whatsapp,
+            'panjang' => $request->panjang,
+            'lebar' => $request->lebar,
+            'durasi_bulan' => $request->durasi_bulan,
+            'harga_per_tahun' => $request->harga_per_tahun,
+            'jenis_pembayaran' => $request->jenis_pembayaran,
+            'nominal_dp' => $request->nominal_dp ?: 0,
+            'metode_dp' => $request->nominal_dp > 0 ? $request->metode_dp : null,
+            'total_pembayaran' => $request->total_pembayaran,
+            'catatan' => $request->catatan,
+            'updated_at' => now()
+        ]);
+        return back()->with('sukses', 'Data property berhasil diperbarui!');
+    });
+
+    Route::post('/data-property/bayar-cicilan/{id}', function (Request $request, $id) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
+        
+        $prop = DB::table('property_rentals')->where('id', $id)->first();
+        if (!$prop) return back()->withErrors(['Data tidak ditemukan.']);
+
+        $pembayaranBaru = $request->nominal_bayar;
+        $totalTerbayar = $prop->nominal_dp + $pembayaranBaru;
+        $statusBaru = ($totalTerbayar >= $prop->total_pembayaran) ? 'Cash' : 'Cicilan';
+
+        // 1. Update total tagihan di tabel utama
+        DB::table('property_rentals')->where('id', $id)->update([
+            'nominal_dp' => $totalTerbayar,
+            'jenis_pembayaran' => $statusBaru,
+            'updated_at' => now()
+        ]);
+        
+        // 2. Rekam jejak pembayaran
+        // Tangkap input tanggal, jika kosong maka gunakan waktu sekarang
+        $waktuBayar = $request->tanggal_bayar ? $request->tanggal_bayar . ' ' . date('H:i:s') : now();
+
+        DB::table('property_payments')->insert([
+            'property_id' => $id,
+            'nominal_bayar' => $pembayaranBaru,
+            'admin_name' => Auth::user()->name,
+            'created_at' => $waktuBayar
+        ]);
+        
+        return back()->with('sukses', 'Pembayaran cicilan berhasil dicatat di histori!');
+    });
+
+    Route::delete('/data-property/hapus-cicilan/{id}', function ($id) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
+        
+        $payment = DB::table('property_payments')->where('id', $id)->first();
+        if ($payment) {
+            $prop = DB::table('property_rentals')->where('id', $payment->property_id)->first();
+            
+            // Kurangi total DP dengan nominal yang dihapus
+            $newDp = $prop->nominal_dp - $payment->nominal_bayar;
+            $statusBaru = ($newDp >= $prop->total_pembayaran) ? 'Cash' : ($newDp > 0 ? 'Cicilan' : 'Belum Bayar');
+
+            DB::table('property_rentals')->where('id', $prop->id)->update([
+                'nominal_dp' => max(0, $newDp),
+                'jenis_pembayaran' => $statusBaru
+            ]);
+            
+            DB::table('property_payments')->where('id', $id)->delete();
+        }
+        return back()->with('sukses', 'Riwayat cicilan berhasil dihapus dan tagihan telah disesuaikan kembali!');
+    });
+
+    Route::get('/data-property/cetak/{id}', function ($id) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
+        
+        $prop = DB::table('property_rentals')->where('id', $id)->first();
+        if (!$prop) return back()->withErrors(['Data tidak ditemukan.']);
+        
+        // Ambil histori untuk ditampilkan di nota
+        $histori = DB::table('property_payments')->where('property_id', $id)->orderBy('created_at', 'asc')->get();
+        
+        return view('property.cetak', compact('prop', 'histori'));
+    });
+
+    Route::delete('/data-property/hapus/{id}', function ($id) {
+        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
+        DB::table('property_payments')->where('property_id', $id)->delete(); // Hapus histori terkait
+        DB::table('property_rentals')->where('id', $id)->delete();
+        return back()->with('sukses', 'Data property berhasil dihapus secara keseluruhan!');
     });
 });

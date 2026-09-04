@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Nota Sewa Lahan - {{ $rental->tenant_name }}</title>
+    <title>Nota - {{ $prop->nama_penyewa }}</title>
     <style>
         /* SETTING KERTAS UNTUK MESIN PRINT (A5) */
         @page {
@@ -124,6 +124,7 @@
             page-break-inside: avoid;
         }
 
+        /* PERBAIKAN FOOTER: Menggunakan margin-top dan clear:both agar tidak nabrak konten atasnya */
         .footer {
             margin-top: 25px;
             font-size: 8px;
@@ -174,30 +175,30 @@
     <!-- PEMBUNGKUS "KERTAS" -->
     <div class="kertas">
         @php
-            $hashRahasia = strtoupper(substr(md5($rental->id . $rental->created_at), 0, 4));
-            $regNumber = 'PM-' . sprintf('%05d', $rental->id) . '-' . $hashRahasia;
+            $hashRahasia = strtoupper(substr(md5($prop->id . $prop->created_at), 0, 4));
+            $regNumber = 'PROP-' . sprintf('%05d', $prop->id) . '-' . $hashRahasia;
 
-            $totalBayar = $histori->sum('amount_paid');
-            $sisaTagihan = max(0, $rental->total_price - $totalBayar);
+            $totalBayar = $prop->nominal_dp;
+            $sisaTagihan = max(0, $prop->total_pembayaran - $totalBayar);
             $statusText = $sisaTagihan <= 0 ? 'LUNAS' : 'MENCICIL';
 
-            $tglMulai = date('d/m/Y', strtotime($rental->created_at));
+            $tglMulai = date('d/m/Y', strtotime($prop->created_at));
             $tglBerakhir = date(
                 'd/m/Y',
-                strtotime('+' . $rental->contract_duration_months . ' months', strtotime($rental->created_at)),
+                strtotime('+' . $prop->durasi_bulan . ' months', strtotime($prop->created_at)),
             );
 
-            $validationUrl = url('/sewa-lahan/cetak-nota/' . $rental->id);
+            $validationUrl = url('/data-property/cetak/' . $prop->id);
             $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=' . urlencode($validationUrl);
         @endphp
 
         <div class="watermark">
-            PANDE MESARI &bull; {{ strtoupper($rental->tenant_name) }} &bull; {{ $statusText }}
+            PANDE MESARI &bull; {{ strtoupper($prop->nama_penyewa) }} &bull; {{ $statusText }}
         </div>
 
         <div class="content-wrapper">
             <div class="header">PANDE MESARI</div>
-            <div class="sub-header">Sewa Kontrak Lahan</div>
+            <div class="sub-header">Sewa Kontrak Properti</div>
 
             <div class="title">KWITANSI PEMBAYARAN</div>
 
@@ -209,14 +210,13 @@
                         {{ $regNumber }}
                     </td>
                     <td width="18%"><b>Nama:</b></td>
-                    <td width="32%"><b>{{ $rental->tenant_name }}</b></td>
+                    <td width="32%"><b>{{ $prop->nama_penyewa }}</b></td>
                 </tr>
                 <tr>
                     <td><b>No. WA:</b></td>
-                    <td>{{ $rental->tenant_phone ?: '-' }}</td>
+                    <td>{{ $prop->no_whatsapp ?: '-' }}</td>
                     <td><b>Luas:</b></td>
-                    <td>{{ $rental->rented_length }} x {{ $rental->rented_width }} m
-                        ({{ $rental->rented_length * $rental->rented_width }} m&sup2;)</td>
+                    <td>{{ $prop->panjang }} x {{ $prop->lebar }} m ({{ $prop->panjang * $prop->lebar }} m&sup2;)</td>
                 </tr>
                 <tr>
                     <td><b>Mulai:</b></td>
@@ -226,9 +226,9 @@
                 </tr>
                 <tr>
                     <td><b>Lama Kontrak:</b></td>
-                    <td>{{ $rental->contract_duration_months }} bulan</td>
+                    <td>{{ $prop->durasi_bulan }} bulan</td>
                     <td><b>Total Kontrak:</b></td>
-                    <td style="font-size: 11px;"><b>Rp {{ number_format($rental->total_price, 0, ',', '.') }}</b>
+                    <td style="font-size: 11px;"><b>Rp {{ number_format($prop->total_pembayaran, 0, ',', '.') }}</b>
                     </td>
                 </tr>
             </table>
@@ -253,10 +253,10 @@
                             @forelse($histori as $pay)
                                 <tr>
                                     <td style="text-align: center;">{{ $no++ }}</td>
-                                    <td>{{ date('d/m/Y', strtotime($pay->payment_date)) }}</td>
+                                    <td>{{ date('d/m/Y', strtotime($pay->created_at)) }}</td>
                                     <td style="font-weight: bold;">Rp
-                                        {{ number_format($pay->amount_paid, 0, ',', '.') }}</td>
-                                    <td>{{ strtoupper($pay->payment_method ?? 'CASH') }}
+                                        {{ number_format($pay->nominal_bayar, 0, ',', '.') }}</td>
+                                    <td>{{ $no == 2 && $prop->metode_dp ? strtoupper($prop->metode_dp) : 'CASH/TRF' }}
                                     </td>
                                 </tr>
                             @empty
@@ -297,11 +297,14 @@
                 <!-- BAGIAN KANAN: CATATAN & QR CODE -->
                 <div style="width: 45%; float: right;">
                     <div class="catatan-box">
-                        <!-- Tabel Transparan untuk layout dalam kotak -->
                         <table style="width: 100%; border: none; margin: 0; padding: 0;">
                             <tr>
                                 <td style="border: none; padding: 0; vertical-align: top;">
-                                    <b style="font-size: 10px;">Catatan & Aturan:</b>
+                                    <b style="font-size: 10px;">Catatan Tambahan:</b>
+                                    <div style="margin-top: 2px; margin-bottom: 4px;">
+                                        {{ $prop->catatan ?: '-' }}
+                                    </div>
+                                    <b style="font-size: 10px;">Ketentuan:</b>
                                     <ul style="padding-left: 12px; margin-top: 3px; margin-bottom: 0;">
                                         <li>Uang yang diterima tidak bisa ditarik.</li>
                                         <li>Aturan pemilik tanah:

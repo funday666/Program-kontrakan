@@ -199,6 +199,14 @@
                     </a>
                 </li>
 
+                <!-- Menu Data Property (BARU) -->
+                <li class="nav-item">
+                    <a href="{{ url('/data-property') }}"
+                        class="nav-link {{ request()->is('data-property*') ? 'active' : '' }}">
+                        <i class="bi bi-building"></i> Data Property
+                    </a>
+                </li>
+
                 <!-- Menu Tagihan Air & Listrik (Diperbaiki) -->
                 <li class="nav-item">
                     <a href="{{ url('/tagihan-utilitas') }}"
