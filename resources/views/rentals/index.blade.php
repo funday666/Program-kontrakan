@@ -75,7 +75,7 @@
             </div>
 
             <div class="card-body p-0">
-                <div class="table-responsive-xl" style="padding-bottom: 120px; min-height: 350px;">
+                <div class="table-responsive-xl" style="padding-bottom: 30px; min-height: 350px;">
                     <!-- TABEL 8 KOLOM -->
                     <table class="table table-hover align-middle text-nowrap mb-0">
                         <thead class="table-light">
