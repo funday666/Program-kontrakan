@@ -144,16 +144,16 @@
             color: #dc3545;
         }
 
-        /* Tombol Aksi */
+        /* Tombol Aksi Tunggal */
         .button-container {
             margin-top: 25px;
             display: flex;
-            gap: 15px;
             justify-content: center;
         }
 
-        .btn-action {
-            padding: 12px 25px;
+        .btn-print {
+            padding: 12px 35px;
+            background: #0d6efd;
             color: white;
             border: none;
             border-radius: 5px;
@@ -165,23 +165,10 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            text-decoration: none;
-        }
-
-        .btn-print {
-            background: #0d6efd;
         }
 
         .btn-print:hover {
             background: #0b5ed7;
-        }
-
-        .btn-download {
-            background: #198754;
-        }
-
-        .btn-download:hover {
-            background: #157347;
         }
 
         .content-wrapper {
@@ -363,23 +350,13 @@
         </div>
     </div>
 
-    <!-- Tombol Aksi di Bawah Nota -->
+    <!-- 1 Tombol Aksi yang Bersih -->
     <div class="button-container">
-        <button class="btn-action btn-print" onclick="window.print()">
-            🖨️ Cetak Nota
-        </button>
-        <button class="btn-action btn-download" onclick="downloadPDF()">
-            📥 Download PDF
+        <button class="btn-print" onclick="window.print()">
+            🖨️ Cetak / Simpan PDF
         </button>
     </div>
 
-    <script>
-        function downloadPDF() {
-            alert(
-                "Tips: Pada jendela cetak yang muncul, ubah pilihan Destination / Printer menjadi 'Save as PDF' (Simpan sebagai PDF), lalu klik Simpan.");
-            window.print();
-        }
-    </script>
 </body>
 
 </html>
