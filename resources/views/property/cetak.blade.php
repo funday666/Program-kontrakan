@@ -35,7 +35,7 @@
             overflow: hidden;
         }
 
-        /* 3. RESET TAMPILAN SAAT BENAR-BENAR DIPRINT KE KERTAS FISIK */
+        /* 3. RESET TAMPILAN SAAT BENAR-BENAR DIPRINT KE KERTAS FISIK / PDF */
         @media print {
             body {
                 background-color: #fff;
@@ -52,8 +52,8 @@
                 min-height: auto;
             }
 
-            .btn-print {
-                display: none;
+            .button-container {
+                display: none !important;
             }
         }
 
@@ -124,7 +124,6 @@
             page-break-inside: avoid;
         }
 
-        /* PERBAIKAN FOOTER: Menggunakan margin-top dan clear:both agar tidak nabrak konten atasnya */
         .footer {
             margin-top: 25px;
             font-size: 8px;
@@ -145,23 +144,44 @@
             color: #dc3545;
         }
 
-        /* Tombol Cetak */
-        .btn-print {
+        /* Tombol Aksi */
+        .button-container {
             margin-top: 25px;
-            padding: 12px 30px;
-            background: #0d6efd;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn-action {
+            padding: 12px 25px;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
             transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn-print {
+            background: #0d6efd;
         }
 
         .btn-print:hover {
             background: #0b5ed7;
+        }
+
+        .btn-download {
+            background: #198754;
+        }
+
+        .btn-download:hover {
+            background: #157347;
         }
 
         .content-wrapper {
@@ -262,8 +282,7 @@
                             @empty
                                 <tr>
                                     <td colspan="4" style="text-align: center; font-style: italic; color: #777;">
-                                        Belum ada
-                                        pembayaran.</td>
+                                        Belum ada pembayaran.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -344,9 +363,23 @@
         </div>
     </div>
 
-    <!-- Tombol Cetak -->
-    <button class="btn-print" onclick="window.print()">🖨️ Cetak Nota</button>
+    <!-- Tombol Aksi di Bawah Nota -->
+    <div class="button-container">
+        <button class="btn-action btn-print" onclick="window.print()">
+            🖨️ Cetak Nota
+        </button>
+        <button class="btn-action btn-download" onclick="downloadPDF()">
+            📥 Download PDF
+        </button>
+    </div>
 
+    <script>
+        function downloadPDF() {
+            alert(
+                "Tips: Pada jendela cetak yang muncul, ubah pilihan Destination / Printer menjadi 'Save as PDF' (Simpan sebagai PDF), lalu klik Simpan.");
+            window.print();
+        }
+    </script>
 </body>
 
 </html>
