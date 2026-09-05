@@ -35,13 +35,11 @@ Route::get('/sewa-lahan/cetak-nota/{id}', function ($id) {
     $rental = DB::table('rentals')->where('id', $id)->first();
     if (!$rental) abort(404, 'Data nota tidak ditemukan.');
     
-    // Ambil histori pembayaran (diurutkan dari yang paling awal)
     $histori = DB::table('payment_details')
                  ->where('rental_id', $id)
                  ->orderBy('payment_date', 'asc')
                  ->get();
     
-    // Mereturn view HTML Pratinjau Kertas untuk dicetak
     return view('rentals.nota', compact('rental', 'histori'));
 });
 
@@ -116,7 +114,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/histori/{jenis}', function (Request $request, $jenis) {
         $startDate = $request->input('start_date'); 
         $endDate = $request->input('end_date');
-        $search = $request->input('search'); // Tangkap kata kunci pencarian
+        $search = $request->input('search');
         $isViewer = strpos(strtolower(Auth::user()->email), 'viewer') !== false;
 
         $filterDate = function($query, $column) use ($startDate, $endDate) {
@@ -288,9 +286,7 @@ Route::middleware('auth')->group(function () {
         DB::table('balance_mutations')->where('id', $id)->delete(); return back()->with('sukses', 'Riwayat mutasi dihapus!');
     });
 
-    // =================================================================
-    // TAMBAHAN: UPDATE & HAPUS PEMASUKAN DARI HALAMAN HISTORI
-    // =================================================================
+    // === TAMBAHAN: UPDATE & HAPUS PEMASUKAN DARI HALAMAN HISTORI ===
     Route::post('/histori/update-pemasukan/{id}', function (Request $request, $id) {
         if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak: Anda masuk sebagai Pemantau.']);
         DB::table('payment_details')->where('id', $id)->update([
@@ -308,9 +304,7 @@ Route::middleware('auth')->group(function () {
         return back()->with('sukses', 'Data pemasukan berhasil dihapus!');
     });
 
-    // =================================================================
-    // TAMBAHAN: UPDATE MUTASI DARI HALAMAN HISTORI
-    // =================================================================
+    // === TAMBAHAN: UPDATE MUTASI DARI HALAMAN HISTORI ===
     Route::post('/histori/update-mutasi/{id}', function (Request $request, $id) {
         if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak: Anda masuk sebagai Pemantau.']);
         $dataLama = DB::table('balance_mutations')->where('id', $id)->first();
@@ -323,84 +317,6 @@ Route::middleware('auth')->group(function () {
             'created_at' => $waktu
         ]);
         return back()->with('sukses', 'Data mutasi berhasil diperbarui!');
-    });
-
-    // =================================================================
-    // MODUL TAGIHAN AIR & LISTRIK
-    // =================================================================
-    Route::get('/tagihan-utilitas', function (Request $request) {
-        $search = $request->input('search');
-        $status = $request->input('status');
-        
-        $query = DB::table('utility_bills')
-            ->join('rentals', 'utility_bills.rental_id', '=', 'rentals.id')
-            ->select('utility_bills.*', 'rentals.tenant_name');
-            
-        if ($search) $query->where('rentals.tenant_name', 'like', "%{$search}%");
-        if ($status) $query->where('utility_bills.status_bayar', $status);
-        
-        $dataTagihan = $query->orderBy('utility_bills.created_at', 'desc')->paginate(15)->appends($request->query());
-        $dataRentals = DB::table('rentals')->orderBy('tenant_name', 'asc')->get();
-        
-        return view('tagihan.index', compact('dataTagihan', 'dataRentals'));
-    });
-
-    Route::post('/tagihan-utilitas/simpan', function (Request $request) {
-        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
-        
-        $wAwal = $request->meter_air_awal ?: 0; $wAkhir = $request->meter_air_akhir ?: 0; $wTarif = $request->tarif_air ?: 0;
-        $eAwal = $request->meter_listrik_awal ?: 0; $eAkhir = $request->meter_listrik_akhir ?: 0; $eTarif = $request->tarif_listrik ?: 0;
-        $bLain = $request->biaya_lain ?: 0;
-        
-        $wTotal = max(0, $wAkhir - $wAwal) * $wTarif;
-        $eTotal = max(0, $eAkhir - $eAwal) * $eTarif;
-        $grandTotal = $wTotal + $eTotal + $bLain;
-
-        DB::table('utility_bills')->insert([
-            'rental_id' => $request->rental_id,
-            'periode_bulan' => $request->periode_bulan,
-            'meter_air_awal' => $wAwal, 'meter_air_akhir' => $wAkhir, 'tarif_air' => $wTarif, 'total_air' => $wTotal,
-            'meter_listrik_awal' => $eAwal, 'meter_listrik_akhir' => $eAkhir, 'tarif_listrik' => $eTarif, 'total_listrik' => $eTotal,
-            'biaya_lain' => $bLain, 'keterangan_biaya_lain' => $request->keterangan_biaya_lain,
-            'total_tagihan' => $grandTotal,
-            'status_bayar' => $request->status_bayar,
-            'metode_pembayaran' => $request->metode_pembayaran, // <--- Menyimpan Metode Pembayaran
-            'created_by' => Auth::user()->name,
-            'created_at' => now(), 'updated_at' => now()
-        ]);
-        return back()->with('sukses', 'Tagihan Air & Listrik berhasil dicatat!');
-    });
-
-    Route::post('/tagihan-utilitas/bayar/{id}', function (Request $request, $id) {
-        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
-        
-        DB::table('utility_bills')->where('id', $id)->update([
-            'status_bayar' => 'Lunas', 
-            'metode_pembayaran' => $request->metode_pembayaran, // <--- Update Metode Pembayaran
-            'updated_at' => now()
-        ]);
-        return back()->with('sukses', 'Tagihan berhasil ditandai Lunas!');
-    });
-
-    Route::delete('/tagihan-utilitas/hapus/{id}', function ($id) {
-        if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
-        DB::table('utility_bills')->where('id', $id)->delete();
-        return back()->with('sukses', 'Data tagihan berhasil dihapus!');
-    });
-
-    // =================================================================
-    // API AUTO-FILL METERAN BULAN LALU (AIR & LISTRIK)
-    // =================================================================
-    Route::get('/tagihan-utilitas/get-meter-terakhir/{rental_id}', function ($rental_id) {
-        $lastBill = DB::table('utility_bills')
-            ->where('rental_id', $rental_id)
-            ->orderBy('id', 'desc') // <--- UBAH BAGIAN INI MENJADI BERDASARKAN ID TERBESAR
-            ->first();
-
-        return response()->json([
-            'air_awal' => $lastBill ? (float) $lastBill->meter_air_akhir : 0,
-            'listrik_awal' => $lastBill ? (float) $lastBill->meter_listrik_akhir : 0
-        ]);
     });
 
     // =================================================================
@@ -421,7 +337,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/data-property/simpan', function (Request $request) {
         if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
         
-        // Simpan data property dan ambil ID-nya
         $propId = DB::table('property_rentals')->insertGetId([
             'nama_penyewa' => $request->nama_penyewa,
             'no_whatsapp' => $request->no_whatsapp,
@@ -438,7 +353,6 @@ Route::middleware('auth')->group(function () {
             'created_at' => now(), 'updated_at' => now()
         ]);
 
-        // Jika ada DP Awal, catat di riwayat pembayaran
         if ($request->nominal_dp > 0) {
             DB::table('property_payments')->insert([
                 'property_id' => $propId,
@@ -481,15 +395,12 @@ Route::middleware('auth')->group(function () {
         $totalTerbayar = $prop->nominal_dp + $pembayaranBaru;
         $statusBaru = ($totalTerbayar >= $prop->total_pembayaran) ? 'Cash' : 'Cicilan';
 
-        // 1. Update total tagihan di tabel utama
         DB::table('property_rentals')->where('id', $id)->update([
             'nominal_dp' => $totalTerbayar,
             'jenis_pembayaran' => $statusBaru,
             'updated_at' => now()
         ]);
         
-        // 2. Rekam jejak pembayaran
-        // Tangkap input tanggal, jika kosong maka gunakan waktu sekarang
         $waktuBayar = $request->tanggal_bayar ? $request->tanggal_bayar . ' ' . date('H:i:s') : now();
 
         DB::table('property_payments')->insert([
@@ -509,7 +420,6 @@ Route::middleware('auth')->group(function () {
         if ($payment) {
             $prop = DB::table('property_rentals')->where('id', $payment->property_id)->first();
             
-            // Kurangi total DP dengan nominal yang dihapus
             $newDp = $prop->nominal_dp - $payment->nominal_bayar;
             $statusBaru = ($newDp >= $prop->total_pembayaran) ? 'Cash' : ($newDp > 0 ? 'Cicilan' : 'Belum Bayar');
 
@@ -529,7 +439,6 @@ Route::middleware('auth')->group(function () {
         $prop = DB::table('property_rentals')->where('id', $id)->first();
         if (!$prop) return back()->withErrors(['Data tidak ditemukan.']);
         
-        // Ambil histori untuk ditampilkan di nota
         $histori = DB::table('property_payments')->where('property_id', $id)->orderBy('created_at', 'asc')->get();
         
         return view('property.cetak', compact('prop', 'histori'));
@@ -537,7 +446,7 @@ Route::middleware('auth')->group(function () {
 
     Route::delete('/data-property/hapus/{id}', function ($id) {
         if (strpos(strtolower(Auth::user()->email), 'viewer') !== false) return back()->withErrors(['Akses Ditolak.']);
-        DB::table('property_payments')->where('property_id', $id)->delete(); // Hapus histori terkait
+        DB::table('property_payments')->where('property_id', $id)->delete();
         DB::table('property_rentals')->where('id', $id)->delete();
         return back()->with('sukses', 'Data property berhasil dihapus secara keseluruhan!');
     });

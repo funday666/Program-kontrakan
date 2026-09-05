@@ -2,6 +2,7 @@
 
 @section('content')
     <div class="container-fluid">
+        <!-- Header Halaman -->
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
             <div>
                 <h2 class="fw-bold mb-0 fs-3"><i class="bi bi-building text-primary me-2"></i> Data Property</h2>
@@ -46,16 +47,18 @@
                     </button>
                 @endif
             </div>
+
             <div class="card-body p-0">
                 <div class="table-responsive-xl" style="padding-bottom: 120px; min-height: 350px;">
+                    <!-- TABEL DENGAN 6 KOLOM (Status & Tagihan Digabung) -->
                     <table class="table table-hover align-middle text-nowrap mb-0">
                         <thead class="table-light">
                             <tr>
                                 <th class="ps-4">ID / Penyewa</th>
-                                <th>Spesifikasi & Durasi Sewa</th>
-                                <th>Metode & Riwayat Bayar</th>
-                                <th class="text-end">Sisa Tagihan</th>
-                                <th>Catatan</th>
+                                <th>Kontak WhatsApp</th>
+                                <th>Ukuran Properti</th>
+                                <th>Durasi & Harga</th>
+                                <th>Status & Rincian Tagihan</th>
                                 <th class="text-center pe-4">Aksi</th>
                             </tr>
                         </thead>
@@ -63,16 +66,26 @@
                             @forelse($dataProperty as $row)
                                 @php
                                     $sisaTagihan = max(0, $row->total_pembayaran - $row->nominal_dp);
+
+                                    $bgStatus = 'bg-success text-success fw-bold';
+                                    if ($row->jenis_pembayaran == 'Cicilan') {
+                                        $bgStatus = 'bg-warning text-dark fw-bold';
+                                    }
+                                    if ($row->jenis_pembayaran == 'Belum Bayar') {
+                                        $bgStatus = 'bg-danger text-danger fw-bold';
+                                    }
                                 @endphp
                                 <tr>
+                                    <!-- 1. ID / Penyewa -->
                                     <td class="ps-4">
                                         <div class="badge bg-secondary mb-1">PROP-{{ sprintf('%03d', $row->id) }}</div>
                                         <div class="fw-bold text-dark">{{ $row->nama_penyewa }}</div>
+                                    </td>
 
-                                        <!-- TOMBOL WHATSAPP OTOMATIS -->
+                                    <!-- 2. Kontak WhatsApp -->
+                                    <td>
                                         @if ($row->no_whatsapp)
-                                            <a href="#"
-                                                class="text-success small text-decoration-none d-block mt-1 btn-wa"
+                                            <a href="#" class="text-success text-decoration-none btn-wa"
                                                 data-phone="{{ $row->no_whatsapp }}" data-nama="{{ $row->nama_penyewa }}"
                                                 data-spek="{{ $row->panjang }}m x {{ $row->lebar }}m"
                                                 data-durasi="{{ $row->durasi_bulan }}"
@@ -82,53 +95,48 @@
                                                 data-nota="{{ url('/data-property/cetak/' . $row->id) }}">
                                                 <i class="bi bi-whatsapp"></i> {{ $row->no_whatsapp }}
                                             </a>
+                                        @else
+                                            <span class="text-muted">-</span>
                                         @endif
                                     </td>
-                                    <td>
-                                        <div class="text-primary fw-bold text-xs"><i class="bi bi-rulers"></i> P:
-                                            {{ $row->panjang }}m × L: {{ $row->lebar }}m =
-                                            {{ $row->panjang * $row->lebar }} m²</div>
-                                        <div class="small text-muted">{{ $row->durasi_bulan }} Bulan (Rp
-                                            {{ number_format($row->harga_per_tahun, 0, ',', '.') }}/Thn)</div>
-                                    </td>
-                                    <td>
-                                        @php
-                                            // PENYESUAIAN WARNA TEKS AGAR MUNCUL JELAS
-                                            $bgStatus = 'bg-success text-success fw-bold';
-                                            if ($row->jenis_pembayaran == 'Cicilan') {
-                                                $bgStatus = 'bg-warning text-dark fw-bold';
-                                            }
-                                            if ($row->jenis_pembayaran == 'Belum Bayar') {
-                                                $bgStatus = 'bg-danger text-danger fw-bold';
-                                            }
-                                        @endphp
-                                        <span class="badge {{ $bgStatus }} bg-opacity-10 border mb-1">
-                                            {{ $row->jenis_pembayaran == 'Cash' ? 'Lunas (Cash)' : $row->jenis_pembayaran }}
-                                        </span>
 
-                                        @if ($row->jenis_pembayaran != 'Belum Bayar')
-                                            <div class="small fw-bold text-success">Terbayar: Rp
-                                                {{ number_format($row->nominal_dp, 0, ',', '.') }}</div>
-                                        @else
-                                            <div class="small text-muted">Belum ada pembayaran</div>
-                                        @endif
-                                    </td>
-                                    <td class="text-end">
-                                        @if ($sisaTagihan > 0)
-                                            <span class="fw-black text-danger">Rp
-                                                {{ number_format($sisaTagihan, 0, ',', '.') }}</span>
-                                        @else
-                                            <span class="fw-black text-success"><i class="bi bi-check-all"></i> Lunas</span>
-                                        @endif
-                                        <div class="small text-muted" style="font-size: 0.65rem;">Total: Rp
-                                            {{ number_format($row->total_pembayaran, 0, ',', '.') }}</div>
-                                    </td>
+                                    <!-- 3. Ukuran Properti -->
                                     <td>
-                                        <span class="d-inline-block text-truncate text-muted small"
-                                            style="max-width: 150px;" title="{{ $row->catatan }}">
-                                            {{ $row->catatan ?: '-' }}
-                                        </span>
+                                        <div class="text-primary fw-bold text-xs">
+                                            <i class="bi bi-rulers"></i> {{ $row->panjang }}m × {{ $row->lebar }}m
+                                        </div>
+                                        <div class="small text-muted">Luas: {{ $row->panjang * $row->lebar }} m²</div>
                                     </td>
+
+                                    <!-- 4. Durasi & Harga -->
+                                    <td>
+                                        <div class="fw-bold text-dark small">{{ $row->durasi_bulan }} Bulan</div>
+                                        <div class="small text-muted">Rp
+                                            {{ number_format($row->harga_per_tahun, 0, ',', '.') }}/Thn</div>
+                                    </td>
+
+                                    <!-- 5. Status & Rincian Tagihan (Digabung agar rapat dan mudah dilihat) -->
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <span class="badge {{ $bgStatus }} bg-opacity-10 border">
+                                                {{ $row->jenis_pembayaran == 'Cash' ? 'Lunas (Cash)' : $row->jenis_pembayaran }}
+                                            </span>
+                                            @if ($sisaTagihan > 0)
+                                                <span class="small fw-bold text-danger">Sisa: Rp
+                                                    {{ number_format($sisaTagihan, 0, ',', '.') }}</span>
+                                            @else
+                                                <span class="small fw-bold text-success"><i class="bi bi-check-all"></i>
+                                                    Lunas</span>
+                                            @endif
+                                        </div>
+                                        <div class="small text-muted">
+                                            Terbayar: Rp {{ number_format($row->nominal_dp, 0, ',', '.') }} <span
+                                                class="text-dark">|</span> Total: Rp
+                                            {{ number_format($row->total_pembayaran, 0, ',', '.') }}
+                                        </div>
+                                    </td>
+
+                                    <!-- 6. Aksi -->
                                     <td class="text-center pe-4">
                                         @if (!strpos(strtolower(Auth::user()->email), 'viewer'))
                                             <div class="dropdown">
@@ -180,8 +188,10 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-5">Belum ada data penyewa
-                                        property.</td>
+                                    <td colspan="6" class="text-center text-muted py-5">
+                                        <i class="bi bi-folder2-open fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                                        Belum ada data penyewa property.
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -253,7 +263,8 @@
                                         </div>
                                         <div class="col-md-8">
                                             <label class="form-label fw-bold text-success small">Nominal Cicilan Baru
-                                                (Rp)</label>
+                                                (Rp)
+                                            </label>
                                             <input type="number" name="nominal_bayar" class="form-control fw-bold"
                                                 placeholder="Contoh: 5000000" required max="{{ $sisaTagihan }}">
                                         </div>
@@ -658,7 +669,6 @@
                         hp = '62' + hp;
                     }
 
-                    // Rakit pesan dengan Unicode ES6 murni untuk emotikon
                     let pesan = "Halo Bapak/Ibu *" + nama + "*,\n\n";
                     pesan +=
                         "Berikut adalah informasi tagihan kontrak properti Anda di *Pande Mesari*:\n\n";

@@ -207,14 +207,6 @@
                     </a>
                 </li>
 
-                <!-- Menu Tagihan Air & Listrik (Diperbaiki) -->
-                <li class="nav-item">
-                    <a href="{{ url('/tagihan-utilitas') }}"
-                        class="nav-link {{ request()->is('tagihan-utilitas*') ? 'active' : '' }}">
-                        <i class="bi bi-lightning-charge-fill"></i> Tagihan Air & Listrik
-                    </a>
-                </li>
-
                 <!-- Menu Manajemen User -->
                 <li class="nav-item">
                     <a href="{{ url('/users') }}" class="nav-link {{ request()->is('users*') ? 'active' : '' }}">
